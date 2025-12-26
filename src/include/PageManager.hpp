@@ -30,7 +30,7 @@ class PageManager {
     // 初始化所有页面
     void init(Camera & camera, FaceRknnPool & face_rknn_pool, ImageProcess & image_process);
     void init(Camera & camera, SecurityRknnPool & security_rknn_pool, ImageProcess & image_process, FFmpeg & ffmpeg);
-
+    void init(Camera & camera, FFmpeg & ffmpeg);
     // 切换到指定页面
     void switchToPage(PageType pageType);
 

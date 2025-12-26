@@ -1,12 +1,14 @@
 #include "PageManager.hpp"
 #include "UI.hpp"
 
+
 void PageManager::init(Camera & camera, FaceRknnPool & face_rknn_pool, ImageProcess & image_process)
 {
     pages_[PageType::ACCESS_CONTROL_PAGE] = std::make_unique<AccessControlPage>(camera, face_rknn_pool, image_process);
     pages_[PageType::MAIN_PAGE]           = std::make_unique<MainPage>();
 
 }
+
 
 void PageManager::init(Camera & camera, SecurityRknnPool & security_rknn_pool, ImageProcess & image_process,
                        FFmpeg & ffmpeg)
@@ -16,6 +18,8 @@ void PageManager::init(Camera & camera, SecurityRknnPool & security_rknn_pool, I
 
     current_page_ = pages_[PageType::MAIN_PAGE].get();
 }
+
+
 
 void PageManager::switchToPage(PageType pageType)
 {
@@ -28,3 +32,4 @@ void PageManager::switchToPage(PageType pageType)
         current_page_->show();
     }
 }
+

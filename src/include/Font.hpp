@@ -5,9 +5,11 @@
 
 #define FONT_FILE_PATH "src/assets/font/font.ttf"
 
+/*
 class Font16 {
   private:
-    std::unique_ptr<LvFreetypeFont> font_;
+    //std::unique_ptr<LvFreetypeFont> font_;
+    lv_font_t * font_;
 
   public:
     Font16();
@@ -20,7 +22,8 @@ class Font16 {
 
 class Font24 {
   private:
-    std::unique_ptr<LvFreetypeFont> font_;
+    //std::unique_ptr<LvFreetypeFont> font_;
+    lv_font_t * font_;
 
   public:
     Font24();
@@ -30,3 +33,19 @@ class Font24 {
         return font.font_->raw();
     }
 };
+*/
+
+
+
+class Font16 {
+public:
+    Font16() = default;
+    static lv_font_t* get_font();
+};
+
+class Font24 {
+public:
+    Font24() = default;
+    static lv_font_t* get_font();
+};
+

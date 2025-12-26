@@ -1,3 +1,4 @@
+
 #include "PageManager.hpp"
 #include "Sensor.hpp"
 #include "UI.hpp"
@@ -84,11 +85,17 @@ AccessControlPage::AccessControlPage(Camera & camera, FaceRknnPool & face_rknn_p
                 [&](LvLabel * label) {
                     std::unique_lock<std::mutex> lock(get_frame_mutex_);
 
-                    auto frame = camera_.get_frame();
-
+                    void* dma_ptr;
+                    size_t dma_len;
+                    int dma_index;
+                    camera_.get_frame(dma_ptr, dma_len, dma_index);
+                    cv::Mat nv12(CAMERA_HEIGHT * 3 / 2, CAMERA_WIDTH, CV_8UC1, dma_ptr);
+                    cv::Mat rgb;
+                    image_process_.nv12_to_rgb(nv12, rgb);
+                    camera_.release_frame(dma_index);
                     lock.unlock();
 
-                    face_rknn_pool_.add_inference_task(std::move(frame), image_process_, true);
+                    face_rknn_pool_.add_inference_task(std::make_shared<cv::Mat>(std::move(rgb)), image_process_, true);
                 },
                 face_num_label_)
                 .detach();
@@ -189,11 +196,18 @@ void AccessControlPage::show_normal_screen()
             while(is_running) {
                 std::unique_lock<std::mutex> lock(get_frame_mutex_);
 
-                auto frame = camera_.get_frame();
+                void* dma_ptr;
+                size_t dma_len;
+                int dma_index;
+                camera_.get_frame(dma_ptr, dma_len, dma_index);
+                cv::Mat nv12(CAMERA_HEIGHT * 3 / 2, CAMERA_WIDTH, CV_8UC1, dma_ptr);
+                cv::Mat rgb;
+                image_process_.nv12_to_rgb(nv12, rgb);
+                camera_.release_frame(dma_index);
 
                 lock.unlock();
 
-                face_rknn_pool_.add_inference_task(std::move(frame), image_process_);
+                face_rknn_pool_.add_inference_task(std::make_shared<cv::Mat>(std::move(rgb)), image_process_);
             }
 
             face_rknn_pool_.clean_image_results();
@@ -218,3 +232,4 @@ void AccessControlPage::show_black_screen()
         },
         &load_black_screen_fn);
 }
+             

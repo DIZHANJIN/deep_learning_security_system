@@ -30,13 +30,16 @@ class AccessControlPage : public BasePage {
     FaceRknnPool & face_rknn_pool_;
     ImageProcess & image_process_;
     LvTimer * timer;
-    std::atomic_bool is_running = false;
+    //std::atomic_bool is_running = false;
+    std::atomic_bool is_running{false};
+
     std::mutex get_frame_mutex_;
 
     LvObject * main_screen;
     LvObject * black_screen;
 
-    std::atomic_bool is_black_screen = false;
+    //std::atomic_bool is_black_screen = false;
+    std::atomic_bool is_black_screen{false};
 
     // 记录当前时间戳
     uint64_t pre_timestamp =
@@ -64,12 +67,19 @@ class SecurityCameraPage : public BasePage {
     SecurityRknnPool & security_rknn_pool_;
     FFmpeg & ffmpeg_;
 
-    std::atomic_bool is_running_     = false;
-    std::atomic_bool is_mp4_running_ = false;
-    std::atomic_bool is_auto_record_ = false;
-    std::atomic_bool is_auto_record_start_ = false;
-    std::atomic_bool is_alarm_ = false;
-    std::atomic_bool is_alarm_start_ = false;
+    //std::atomic_bool is_running_     = false;
+    //std::atomic_bool is_mp4_running_ = false;
+    //std::atomic_bool is_auto_record_ = false;
+    //std::atomic_bool is_auto_record_start_ = false;
+    //std::atomic_bool is_alarm_ = false;
+    //std::atomic_bool is_alarm_start_ = false;
+    
+    std::atomic_bool is_running_{false};
+    std::atomic_bool is_mp4_running_{false};
+    std::atomic_bool is_auto_record_{false};
+    std::atomic_bool is_auto_record_start_{false};
+    std::atomic_bool is_alarm_{false};
+    std::atomic_bool is_alarm_start_{false};
     uint64_t auto_record_start_time_ = 0;
 
     std::mutex frame_mutex_;

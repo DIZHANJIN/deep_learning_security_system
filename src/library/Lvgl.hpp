@@ -795,6 +795,7 @@ class LvScreenActive : public LvWidget {
     };
 };
 
+/*
 class LvFreetypeFont : public LvFont {
   public:
     LvFreetypeFont(const char * pathname, lv_freetype_font_render_mode_t render_mode, uint32_t size,
@@ -803,6 +804,7 @@ class LvFreetypeFont : public LvFont {
         this->font_ = lv_freetype_font_create(pathname, render_mode, size, style);
     };
 };
+*/
 
 class LvImageDsc {
   private:

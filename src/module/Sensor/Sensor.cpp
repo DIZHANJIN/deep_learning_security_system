@@ -11,7 +11,8 @@ extern "C" {
 #include <linux/i2c-dev.h>
 }
 
-std::atomic<bool> SR501::is_running = false;
+//std::atomic<bool> SR501::is_running = false;
+std::atomic<bool> SR501::is_running{false};
 
 void SR501::listen_state(std::function<void(bool state)> fn)
 {

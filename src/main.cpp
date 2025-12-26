@@ -143,6 +143,15 @@ int main(int argc, char ** argv)
     lv_linux_disp_init();
 
     Camera camera;
+    
+ 
+    camera.start();
+
+    // 实验1：把 Camera 的 dmabuf 交给 RGA copy，然后 dump 一帧 NV12
+    camera.exp1_rga_copy_dump_nv12("/tmp/rga_copy_out.nv12");
+    
+    camera.stop();
+    
     FFmpeg ffmpeg;
     FaceRknnPool face_rknn_pool;
     SecurityRknnPool security_rknn_pool;
