@@ -16,8 +16,8 @@
 // 视觉阈值
 #define VIS_THRESHOLD 0.4
 
-#define WIDTH 3840
-#define HEIGHT 2160
+#define WIDTH 1920
+#define HEIGHT 1080
 
 static int clamp(int x, int min, int max)
 {

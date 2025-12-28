@@ -37,7 +37,7 @@ AccessControlPage::AccessControlPage(Camera & camera, FaceRknnPool & face_rknn_p
 
     image_->align(LV_ALIGN_CENTER, 0, -50);
 
-    LvButton back_button(main_screen->raw(), "返回");
+    LvButton back_button(main_screen->raw(), "back");
     back_button.set_pos(10, 10).add_event_cb(
         [&](lv_event_t * e, void * data) { PageManager::getInstance().switchToPage(PageManager::PageType::MAIN_PAGE); },
         LV_EVENT_CLICKED, nullptr);
@@ -52,7 +52,7 @@ AccessControlPage::AccessControlPage(Camera & camera, FaceRknnPool & face_rknn_p
     LvSwitch switch_button(switch_container.raw());
     switch_button.set_size(80, 40);
 
-    LvLabel label(switch_container.raw(), "人脸检测", lv_color_white());
+    LvLabel label(switch_container.raw(), "face detect", lv_color_white());
     switch_button.add_event_cb(
         [&](lv_event_t * e, void * data) {
             // 判断状态
@@ -73,11 +73,11 @@ AccessControlPage::AccessControlPage(Camera & camera, FaceRknnPool & face_rknn_p
         .set_flex_flow(LV_FLEX_FLOW_ROW)
         .set_style_text_font(Font24::get_font(), 0);
 
-    LvLabel face_label(face_num_container.raw(), "已录入人脸数量:", lv_color_white());
+    LvLabel face_label(face_num_container.raw(), "face_nums:", lv_color_white());
 
     face_num_label_ = new LvLabel(face_num_container.raw(), "0", lv_color_white());
 
-    LvButton record_face_button(main_screen->raw(), "录入人脸");
+    LvButton record_face_button(main_screen->raw(), "record face");
     record_face_button.align(LV_ALIGN_BOTTOM_MID, -200, -45);
     record_face_button.add_event_cb(
         [&](lv_event_t * e, void * data) {
@@ -91,7 +91,7 @@ AccessControlPage::AccessControlPage(Camera & camera, FaceRknnPool & face_rknn_p
                     camera_.get_frame(dma_ptr, dma_len, dma_index);
                     cv::Mat nv12(CAMERA_HEIGHT * 3 / 2, CAMERA_WIDTH, CV_8UC1, dma_ptr);
                     cv::Mat rgb;
-                    image_process_.nv12_to_rgb(nv12, rgb);
+                    cv::cvtColor(nv12, rgb, cv::COLOR_YUV2RGB_NV12);
                     camera_.release_frame(dma_index);
                     lock.unlock();
 
@@ -111,7 +111,7 @@ AccessControlPage::AccessControlPage(Camera & camera, FaceRknnPool & face_rknn_p
         [&](lv_timer_t * t, void * data) {
 
             std::shared_ptr<cv::Mat> frame_res_ptr = face_rknn_pool_.get_image_result_from_queue();
-
+            std::cout << "[AccessControlPage] timer tick" << std::endl;
             if(frame_res_ptr) {
 
                 cv::resize(*frame_res_ptr, *frame_res_ptr, cv::Size(800, 450));
@@ -195,15 +195,25 @@ void AccessControlPage::show_normal_screen()
 
             while(is_running) {
                 std::unique_lock<std::mutex> lock(get_frame_mutex_);
+                fprintf(stderr, "CAP: loop enter\n"); fflush(stderr);
 
                 void* dma_ptr;
                 size_t dma_len;
                 int dma_index;
+                fprintf(stderr, "CAP: before get_frame\n"); fflush(stderr);
                 camera_.get_frame(dma_ptr, dma_len, dma_index);
+                fprintf(stderr, "CAP: after get_frame idx=%d len=%zu ptr=%p\n", dma_index, dma_len, dma_ptr); fflush(stderr);
+                
                 cv::Mat nv12(CAMERA_HEIGHT * 3 / 2, CAMERA_WIDTH, CV_8UC1, dma_ptr);
+                
+                fprintf(stderr, "CAP: before cvtColor\n"); fflush(stderr);
                 cv::Mat rgb;
-                image_process_.nv12_to_rgb(nv12, rgb);
+                cv::cvtColor(nv12, rgb, cv::COLOR_YUV2RGB_NV12);
+                fprintf(stderr, "CAP: after cvtColor rgb=%dx%d\n", rgb.cols, rgb.rows); fflush(stderr);
+                
+                fprintf(stderr, "CAP: before release idx=%d\n", dma_index); fflush(stderr);
                 camera_.release_frame(dma_index);
+                fprintf(stderr, "CAP: after release idx=%d\n", dma_index); fflush(stderr);
 
                 lock.unlock();
 

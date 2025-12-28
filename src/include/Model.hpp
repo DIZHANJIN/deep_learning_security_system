@@ -6,10 +6,10 @@
 #include <memory>
 #include <mutex>
 
-//#define RETINA_FACE_MODEL_PATH "/home/cat/tmp/deep_learning_security_system/src/assets/model/retina_face.rknn"
-//#define FACENET_MODEL_PATH "/home/cat/tmp/deep_learning_security_system/src/assets/model/facenet.rknn"
-#define YOLO11_MODEL_PATH "/home/cat/tmp/deep_learning_security_system/src/assets/model/yolo5s-rk3566.rknn"
-#define YOLO11_LABEL_PATH "/home/cat/tmp/deep_learning_security_system/src/assets/model/coco_80_labels_list.txt"
+#define RETINA_FACE_MODEL_PATH "/home/cat/tmp/deeplearn/src/assets/model/retina_face.rknn"
+#define FACENET_MODEL_PATH "/home/cat/tmp/deeplearn/src/assets/model/facenet.rknn"
+#define YOLO11_MODEL_PATH "/home/cat/tmp/deeplearn/src/assets/model/yolo11s.rknn"
+#define YOLO11_LABEL_PATH "/home/cat/tmp/deeplearn/src/assets/model/coco_80_labels_list.txt"
 
 #define NPU_CORE_NUM 3
 

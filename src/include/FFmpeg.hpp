@@ -25,7 +25,7 @@ extern "C" {
 }
 
 #define RTSP_URL "rtsp://localhost:8554/live/stream"
-#define MP4_DIR_PATH "/root/nfs_folder/record/"
+#define MP4_DIR_PATH "/home/cat/tmp/record/"
 
 class FFmpeg {
   private:

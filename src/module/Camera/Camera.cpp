@@ -6,9 +6,16 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <cstring>
+#include <cerrno>
+#include <stdexcept>
 #include <iostream>
+#include <chrono>
 
-
+// Experiment 1 helpers: dma-heap + librga
+#include <linux/dma-heap.h>
+#include <sys/stat.h>
+#include <rga/im2d.h>
+#include <rga/rga.h>
 
 #define BUFFER_COUNT 4
 
@@ -21,8 +28,49 @@ static int xioctl(int fd, int request, void* arg)
     return r;
 }
 
-Camera::Camera(const char* dev):  is_running_(false)
+static int alloc_dmabuf_from_heap(const char* heap_path, size_t size)
 {
+    int heap_fd = open(heap_path, O_RDONLY | O_CLOEXEC);
+    if (heap_fd < 0) {
+        return -1;
+    }
+
+    dma_heap_allocation_data data{};
+    data.len = size;
+    data.fd_flags = O_RDWR | O_CLOEXEC;
+
+    if (ioctl(heap_fd, DMA_HEAP_IOCTL_ALLOC, &data) < 0) {
+        close(heap_fd);
+        return -1;
+    }
+
+    close(heap_fd);
+    return data.fd;
+}
+
+static bool write_all(const char* path, const void* buf, size_t len)
+{
+    int fd = open(path, O_CREAT | O_TRUNC | O_WRONLY | O_CLOEXEC, 0644);
+    if (fd < 0) {
+        return false;
+    }
+    const uint8_t* p = static_cast<const uint8_t*>(buf);
+    size_t off = 0;
+    while (off < len) {
+        ssize_t n = write(fd, p + off, len - off);
+        if (n < 0) {
+            close(fd);
+            return false;
+        }
+        off += static_cast<size_t>(n);
+    }
+    close(fd);
+    return true;
+}
+
+Camera::Camera():  is_running_(false)
+{
+    const char* dev = "/dev/video11";
     fd_ = open(dev, O_RDWR | O_NONBLOCK);
     if (fd_ < 0) {
         perror("open video device");
@@ -30,13 +78,13 @@ Camera::Camera(const char* dev):  is_running_(false)
     }
 
     v4l2_format fmt{};
-    //memset(&fmt, 0, sizeof(struct v4l2_format));
+    
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     fmt.fmt.pix_mp.width = CAMERA_WIDTH;
     fmt.fmt.pix_mp.height = CAMERA_HEIGHT;
     fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12;
-    fmt.fmt.pix_mp.field = V4L2_FIELD_NONE;
-    fmt.fmt.pix_mp.num_planes = 1;   // å…ˆæŒ‰ 1 å¤„ç†
+    fmt.fmt.pix_mp.field = V4L2_FIELD_ANY;
+    fmt.fmt.pix_mp.num_planes = 1;   // ÏÈ°´ 1 ´¦Àí
 
     if (xioctl(fd_, VIDIOC_S_FMT, &fmt) < 0) {
         perror("VIDIOC_S_FMT");
@@ -44,11 +92,11 @@ Camera::Camera(const char* dev):  is_running_(false)
     }
 
 
-	// Cache negotiated metadata (driver may adjust)
-	width_	= static_cast<int>(fmt.fmt.pix_mp.width);
-	height_ = static_cast<int>(fmt.fmt.pix_mp.height);
-	pixfmt_ = fmt.fmt.pix_mp.pixelformat;
-	stride_ = static_cast<int>(fmt.fmt.pix_mp.plane_fmt[0].bytesperline);
+    	//Cache negotiated metadata (driver may adjust)
+    	width_	= static_cast<int>(fmt.fmt.pix_mp.width);
+    	height_ = static_cast<int>(fmt.fmt.pix_mp.height);
+    	pixfmt_ = fmt.fmt.pix_mp.pixelformat;
+    	stride_ = static_cast<int>(fmt.fmt.pix_mp.plane_fmt[0].bytesperline);
 
 
     v4l2_requestbuffers req{};
@@ -62,47 +110,60 @@ Camera::Camera(const char* dev):  is_running_(false)
     }
 
     buffers_.resize(req.count);
-	bytesused_.assign(req.count, 0);
+	  bytesused_.assign(req.count, 0);
 
     for (size_t i = 0; i < buffers_.size(); i++) {
         v4l2_buffer buf;
-		memset(&buf, 0, sizeof(buf));
+		    memset(&buf, 0, sizeof(buf));
         v4l2_plane planes[1];
-		memset(planes, 0, sizeof(planes));
+		    memset(planes, 0, sizeof(planes));
 
 		
         buf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
         buf.memory = V4L2_MEMORY_MMAP;
         buf.index  = i;
         
-        // ã€å…³é”®2ã€‘å°† planes æ•°ç»„æŒ‚è½½åˆ° buf ä¸Š
+        // ¡¾¹Ø¼ü2¡¿½« planes Êı×é¹ÒÔØµ½ buf ÉÏ
         buf.m.planes = planes;
-        buf.length   = 1; // å‘Šè¯‰é©±åŠ¨ planes æ•°ç»„æœ‰å¤šå¤§
+        buf.length   = 1; // ¸æËßÇı¶¯ planes Êı×éÓĞ¶à´ó
 
         if (xioctl(fd_, VIDIOC_QUERYBUF, &buf) < 0) 
         {
         perror("VIDIOC_QUERYBUF");
         throw std::runtime_error("QUERYBUF failed");
         }
+        
+           std::cout << "buf[" << i << "] length=" << buf.m.planes[0].length
+              << " offset=0x" << std::hex << buf.m.planes[0].m.mem_offset
+              << std::dec << std::endl;
+
+        // ·ÀÓù£º³¤¶ÈÎª 0 Ö±½Ó±¨´í£¬²»È¥ mmap
+        if (buf.m.planes[0].length == 0) {
+            std::cerr << "ERROR: plane length is 0, mmap would fail\n";
+            throw std::runtime_error("invalid plane length");
+        }
+
 
 
         
-        buffers_[i].length = buf.m.planes.length;
+        buffers_[i].length = planes[0].length;
 
 
         buffers_[i].start = mmap(
             nullptr,
-            buffers_[i].length,        // ä½¿ç”¨ plane çš„é•¿åº¦
+            planes[0].length,        // Ê¹ÓÃ plane µÄ³¤¶È
             PROT_READ | PROT_WRITE,
             MAP_SHARED,
             fd_,
-            buf.m.planes[0].m.mem_offset   // ä½¿ç”¨ plane çš„åç§»é‡
+            planes[0].m.mem_offset   // Ê¹ÓÃ plane µÄÆ«ÒÆÁ¿
         );
+
 
         if (buffers_[i].start == MAP_FAILED) {
             perror("mmap");
-            throw std::runtime_error("mmap failed");
+            throw std::runtime_error("mmap " + std::to_string(i) + " failed");
         }
+
 
         // Export plane0 as dmabuf fd (zero-copy handle for downstream accelerators)
         // NOTE: This does NOT change the capture memory type (still MMAP).
@@ -125,12 +186,9 @@ Camera::Camera(const char* dev):  is_running_(false)
 
         
         if (xioctl(fd_, VIDIOC_QBUF, &buf) < 0) {
-            perr or("VIDIOC_QBUF(init)");
+            perror("VIDIOC_QBUF(init)");
             throw std::runtime_error("QBUF init failed");
         }
-
-
-        xioctl(fd_, VIDIOC_QBUF, &buf);
     }
 }
 
@@ -148,7 +206,7 @@ Camera::~Camera()
     }
     if (fd_ >= 0) {
         close(fd_);
-		b.dmabuf_fd = -1;
+		    fd_ = -1;
     }
 }
 
@@ -197,7 +255,7 @@ void Camera::capture_loop()
             }
             frame_cond_.notify_one();
         } else {
-            // éé˜»å¡æ¨¡å¼ä¸‹ EAGAIN å¾ˆå¸¸è§ï¼Œé¿å…ç©ºè½¬åƒæ»¡ CPU
+            // ·Ç×èÈûÄ£Ê½ÏÂ EAGAIN ºÜ³£¼û£¬±ÜÃâ¿Õ×ª³ÔÂú CPU
             if (errno == EAGAIN) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 continue;
@@ -261,7 +319,7 @@ bool Camera::get_frame_dma(Frame& out, int timeout_ms)
     out.width     = width_;
     out.height    = height_;
     out.stride    = stride_;
-    out.n    = pixfmt_;
+    out.pixfmt    = pixfmt_;
     return true;
 }
 
@@ -269,6 +327,79 @@ int Camera::dmabuf_fd(int index) const
 {
     if (index < 0 || static_cast<size_t>(index) >= buffers_.size()) return -1;
     return buffers_[index].dmabuf_fd;
+}
+
+
+
+bool Camera::exp1_rga_copy_dump_nv12(const char* out_file, const char* dma_heap_path, int timeout_ms)
+{
+    // 1) Get one frame (dmabuf fd) from camera
+    Frame f{};
+    if (!get_frame_dma(f, timeout_ms)) {
+        std::cerr << "[exp1] get_frame_dma timeout/fail\n";
+        return false;
+    }
+    if (f.dmabuf_fd < 0) {
+        std::cerr << "[exp1] camera dmabuf_fd is invalid (EXPBUF unsupported?)\n";
+        release_frame(f.index);
+        return false;
+    }
+    // This experiment assumes NV12; if your camera negotiated a different format,
+    // you can still try copy, but the RGA format mapping must be adjusted.
+    if (f.pixfmt != V4L2_PIX_FMT_NV12) {
+        std::cerr << "[exp1] warning: pixfmt is not NV12 (0x" << std::hex << f.pixfmt << std::dec
+                  << "), this experiment expects NV12\n";
+    }
+
+    // 2) Allocate an output dmabuf to receive the copy
+    // NV12 size is usually stride * height * 3/2
+    const size_t out_size = static_cast<size_t>(f.stride) * static_cast<size_t>(f.height) * 3 / 2;
+    int out_fd = alloc_dmabuf_from_heap(dma_heap_path, out_size);
+    if (out_fd < 0) {
+        std::cerr << "[exp1] alloc dmabuf failed, heap=" << dma_heap_path
+                  << " (check /dev/dma_heap/*)\n";
+        release_frame(f.index);
+        return false;
+    }
+
+    // 3) RGA copy: input dmabuf -> output dmabuf
+    // For NV12, librga commonly uses RK_FORMAT_YCbCr_420_SP
+    const int rga_fmt = RK_FORMAT_YCbCr_420_SP;
+
+    rga_buffer_t src = wrapbuffer_fd(f.dmabuf_fd, f.width, f.height, rga_fmt);
+    rga_buffer_t dst = wrapbuffer_fd(out_fd,     f.width, f.height, rga_fmt);
+
+    IM_STATUS st = imcopy(src, dst);
+    if (st != IM_STATUS_SUCCESS) {
+        std::cerr << "[exp1] imcopy failed: " << imStrError(st) << "\n";
+        close(out_fd);
+        release_frame(f.index);
+        return false;
+    }
+
+    // 4) mmap output dmabuf ONCE for verification dump (learning aid)
+    void* out_ptr = mmap(nullptr, out_size, PROT_READ, MAP_SHARED, out_fd, 0);
+    if (out_ptr == MAP_FAILED) {
+        std::cerr << "[exp1] mmap output dmabuf failed\n";
+        close(out_fd);
+        release_frame(f.index);
+        return false;
+    }
+
+    const bool ok = write_all(out_file, out_ptr, out_size);
+    munmap(out_ptr, out_size);
+    close(out_fd);
+
+    // 5) Return buffer to camera
+    release_frame(f.index);
+
+    if (!ok) {
+        std::cerr << "[exp1] write dump file failed: " << out_file << "\n";
+        return false;
+    }
+
+    std::cerr << "[exp1] dumped NV12 to " << out_file << " (" << out_size << " bytes)\n";
+    return true;
 }
 
 

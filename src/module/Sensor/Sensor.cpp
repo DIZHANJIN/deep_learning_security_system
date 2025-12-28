@@ -24,7 +24,8 @@ void SR501::listen_state(std::function<void(bool state)> fn)
             try {
                 while(is_running) {
                     int value = gpiod_ctxless_get_value("gpiochip4", 3, false, "sr501");
-
+                    //
+                    value = 1;
                     if(value == -1) {
                         std::cout << "error" << std::endl;
                     }

@@ -35,7 +35,7 @@ MainPage::MainPage()
     LvImage face_icon_image{face_container.raw()};
     face_icon_image.set_src(&face_icon);
 
-    LvLabel face_icon_label{face_container.raw(), "人脸门禁系统", lv_color_white()};
+    LvLabel face_icon_label{face_container.raw(), "face_scurity", lv_color_white()};
 
 
     LvObject security_camera_container{main_screen->raw()};
@@ -53,7 +53,7 @@ MainPage::MainPage()
     LvImage security_camera_icon_image{security_camera_container.raw()};
     security_camera_icon_image.set_src(&security_camera_icon);
 
-    LvLabel security_camera_icon_label{security_camera_container.raw(), "IP智能安防摄像头", lv_color_white()};
+    LvLabel security_camera_icon_label{security_camera_container.raw(), "IPC", lv_color_white()};
 }
 
 void MainPage::show()

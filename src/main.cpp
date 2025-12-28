@@ -147,10 +147,15 @@ int main(int argc, char ** argv)
  
     camera.start();
 
-    // å®éªŒ1ï¼šæŠŠ Camera çš„ dmabuf äº¤ç»™ RGA copyï¼Œç„¶å dump ä¸€å¸§ NV12
-    camera.exp1_rga_copy_dump_nv12("/tmp/rga_copy_out.nv12");
-    
-    camera.stop();
+    // ÊµÑé1£º°Ñ Camera µÄ dmabuf ½»¸ø RGA copy£¬È»ºó dump Ò»Ö¡ NV12
+
+    camera.exp1_rga_copy_dump_nv12(
+    "/tmp/rga_test.nv12",        // Êä³öÎÄ¼ş
+    "/dev/dma_heap/system",      // Ä¿±ê heap
+    3000                         // ³¬Ê± 3 Ãë
+    );
+   
+    //camera.stop();
     
     FFmpeg ffmpeg;
     FaceRknnPool face_rknn_pool;

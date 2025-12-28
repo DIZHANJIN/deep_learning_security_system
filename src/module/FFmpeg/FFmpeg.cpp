@@ -37,8 +37,8 @@ void FFmpeg::init_encodec()
     av_dict_set(&rk_encodec_opts, "profile", "high", 0);
     av_dict_set(&rk_encodec_opts, "level", "5.2", 0);
 
-    rk_encodec_ctx_->width     = 3840;
-    rk_encodec_ctx_->height    = 2160;
+    rk_encodec_ctx_->width     = 1920;
+    rk_encodec_ctx_->height    = 1080;
     rk_encodec_ctx_->pix_fmt   = AV_PIX_FMT_BGR24;
     rk_encodec_ctx_->time_base = (AVRational){1, 30};
     rk_encodec_ctx_->gop_size  = 25;
